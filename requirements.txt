@@ -3,8 +3,7 @@ uvicorn[standard]==0.30.0
 python-multipart==0.0.9
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-sqlalchemy>=2.0.41
+sqlalchemy>=2.0.41      # works with Python 3.14
 asyncmy==0.2.9
 python-dotenv==1.0.0
-cryptography==41.0.7
-python-3.12
+cryptography>=44.0.0    # upgrade to latest
