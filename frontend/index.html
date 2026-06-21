@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Print Login</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; }
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 300px; }
+        h2 { text-align: center; color: #333; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+        .toggle-txt { text-align: center; margin-top: 15px; font-size: 14px; }
+        .toggle-txt a { color: #007bff; cursor: pointer; text-decoration: underline; }
+        #message { margin-top: 10px; text-align: center; font-size: 14px; min-height: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="login-form">
+            <h2>Login</h2>
+            <input type="text" id="login-user" placeholder="Username">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button onclick="submitForm('login')">Login</button>
+            <div class="toggle-txt">
+                Don't have an account? <a onclick="toggleForms()">Sign Up</a>
+            </div>
+        </div>
+
+        <div id="signup-form" class="hidden">
+            <h2>Sign Up</h2>
+            <input type="text" id="signup-user" placeholder="Choose Username">
+            <input type="password" id="signup-pass" placeholder="Choose Password">
+            <button onclick="submitForm('signup')">Sign Up</button>
+            <div class="toggle-txt">
+                Already have an account? <a onclick="toggleForms()">Login</a>
+            </div>
+        </div>
+
+        <div id="message"></div>
+    </div>
+<script src="login.js"></script>
+    
+</body>
+</html>
+
