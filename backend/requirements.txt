@@ -3,7 +3,7 @@ uvicorn[standard]==0.30.0
 python-multipart==0.0.9
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-sqlalchemy>=2.0.41      # works with Python 3.14
-asyncmy>=0.2.11
+sqlalchemy>=2.0.41      # Python 3.14 compatible
+asyncmy>=0.2.11          # Fixes SSL handshake
 python-dotenv==1.0.0
-cryptography>=44.0.0    # upgrade to latest
+cryptography>=44.0.0    # Compatible with Python 3.14
