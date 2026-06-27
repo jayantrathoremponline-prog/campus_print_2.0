@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Orders - CampusPrint</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; padding: 2rem; }
+        .container { max-width: 1200px; margin: auto; background: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+        h1 { color: #2563eb; margin-bottom: 0.5rem; }
+        .sub { color: #6b7280; margin-bottom: 1.5rem; }
+        .back-link { display: inline-block; margin-top: 1.5rem; color: #2563eb; text-decoration: none; font-weight: 500; }
+        .back-link:hover { text-decoration: underline; }
+
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+        th { background: #eef2ff; text-align: left; padding: 0.75rem; font-weight: 600; }
+        td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        tr:hover { background: #f9fafb; }
+
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-received { background: #fef3c7; color: #92400e; }
+        .badge-printing { background: #bfdbfe; color: #1e40af; }
+        .badge-completed { background: #d1fae5; color: #065f46; }
+        .badge-picked { background: #e5e7eb; color: #374151; }
+
+        .loading { text-align: center; padding: 2rem; color: #6b7280; }
+        .no-orders { text-align: center; padding: 2rem; color: #6b7280; font-size: 1.1rem; }
+
+        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .nav a { color: #2563eb; text-decoration: none; font-weight: 500; }
+        .nav a:hover { text-decoration: underline; }
+        .logout-btn { background: #ef4444; color: white; border: none; padding: 0.3rem 1rem; border-radius: 5px; cursor: pointer; }
+
+        @media (max-width: 768px) {
+            table { font-size: 0.75rem; }
+            th, td { padding: 0.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <h1>📄 My Orders</h1>
+            <div>
+                <a href="main.html">← Back to Order</a>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        <p class="sub">Here are all the print orders you have placed.</p>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Student</th>
+                        <th>Pages</th>
+                        <th>Copies</th>
+                        <th>Type</th>
+                        <th>Binding</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                        <th>Files</th>
+                    </tr>
+                </thead>
+                <tbody id="orders-body">
+                    <tr><td colspan="9" class="loading">Loading your orders...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://campus-print-2-0.onrender.com'; // your live backend URL
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        async function fetchOrders() {
+            const tbody = document.getElementById('orders-body');
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading your orders...</td></tr>';
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/orders`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to fetch orders');
+                }
+
+                const data = await res.json();
+                renderOrders(data.orders);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="9" style="color: red;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderOrders(orders) {
+            const tbody = document.getElementById('orders-body');
+            if (!orders || orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="no-orders">You haven\'t placed any orders yet. <a href="main.html">Go place one now!</a></td></tr>';
+                return;
+            }
+
+            let html = '';
+            orders.forEach(order => {
+                let badgeClass = 'badge-received';
+                if (order.status === 'printing') badgeClass = 'badge-printing';
+                else if (order.status === 'completed') badgeClass = 'badge-completed';
+                else if (order.status === 'picked') badgeClass = 'badge-picked';
+
+                // Generate file links
+                let fileLinks = 'No files';
+                if (order.file_paths) {
+                    try {
+                        const files = JSON.parse(order.file_paths);
+                        if (files.length > 0) {
+                            fileLinks = files.map(f => `<a href="${BACKEND_URL}/uploads/${f.split('/').pop()}" target="_blank">📎</a>`).join(' ');
+                        }
+                    } catch (e) {
+                        fileLinks = 'N/A';
+                    }
+                }
+
+                html += `
+                    <tr>
+                        <td><code>${order.id.substring(0, 8)}</code></td>
+                        <td>${order.student_name}</td>
+                        <td>${order.total_pages}</td>
+                        <td>${order.copies}</td>
+                        <td>${order.print_type}</td>
+                        <td>${order.binding}</td>
+                        <td>${order.payment_method}</td>
+                        <td><span class="badge ${badgeClass}">${order.status}</span></td>
+                        <td>${fileLinks}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchOrders);
+    </script>
+</body>
+</html>
