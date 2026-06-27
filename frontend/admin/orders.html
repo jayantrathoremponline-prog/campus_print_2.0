@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; padding: 2rem; }
-        .container { max-width: 1300px; margin: auto; background: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+        .container { max-width: 1400px; margin: auto; background: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
         h1 { color: #2563eb; margin-bottom: 0.5rem; }
         .sub { color: #6b7280; margin-bottom: 1.5rem; }
         .back-link { display: inline-block; margin-top: 1.5rem; color: #2563eb; text-decoration: none; font-weight: 500; }
@@ -20,13 +20,19 @@
         .table-wrapper { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
         th { background: #eef2ff; text-align: left; padding: 0.75rem; font-weight: 600; }
-        td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         tr:hover { background: #f9fafb; }
 
         .status-select { padding: 0.3rem 0.5rem; border-radius: 6px; border: 1px solid #d1d5db; background: white; }
-        .update-btn { padding: 0.3rem 0.8rem; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: 0.2s; }
-        .update-btn:hover { background: #1e40af; }
-        .update-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-action { padding: 0.3rem 0.8rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: 0.2s; margin: 2px; }
+        .btn-update { background: #2563eb; color: white; }
+        .btn-update:hover { background: #1e40af; }
+        .btn-print { background: #f59e0b; color: white; }
+        .btn-print:hover { background: #d97706; }
+        .btn-delete { background: #ef4444; color: white; }
+        .btn-delete:hover { background: #dc2626; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .loading { text-align: center; padding: 2rem; color: #6b7280; }
         .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
         .badge-received { background: #fef3c7; color: #92400e; }
@@ -38,12 +44,24 @@
             table { font-size: 0.75rem; }
             th, td { padding: 0.4rem; }
         }
+
+        /* Print receipt styles */
+        @media print {
+            .no-print { display: none !important; }
+            .print-receipt { display: block !important; }
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 1rem; }
+            table { font-size: 0.8rem; }
+            th, td { border: 1px solid #ccc; }
+            .btn-action, .status-select, .back-link, #message { display: none !important; }
+        }
+        .print-receipt { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📋 All Orders</h1>
-        <p class="sub">View and update the status of every print order</p>
+        <p class="sub">View, update, print, or delete orders</p>
 
         <div id="message"></div>
 
@@ -60,7 +78,7 @@
                         <th>Binding</th>
                         <th>Files</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th class="no-print">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="orders-body">
@@ -69,12 +87,11 @@
             </table>
         </div>
 
-        <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+        <a href="dashboard.html" class="back-link no-print">← Back to Dashboard</a>
     </div>
 
     <script>
-        // ✅ IMPORTANT: Set the correct backend URL (no trailing slash)
-        const BACKEND_URL = 'https://campus-print-2-0.onrender.com';
+        const BACKEND_URL = 'https://campus-print-2-0.onrender.com'; // <-- update if different
 
         const token = localStorage.getItem('token');
         if (!token) {
@@ -132,15 +149,9 @@
                 else if (order.status === 'completed') badgeClass = 'badge-completed';
                 else if (order.status === 'picked') badgeClass = 'badge-picked';
 
-                // Generate file links correctly
                 let fileLinks = 'No files';
                 if (order.file_urls && order.file_urls.length > 0) {
-                    fileLinks = order.file_urls.map(f => {
-                        // f already starts with '/uploads/...'
-                        const fullUrl = `${BACKEND_URL}${f}`;  // no extra slash
-                        console.log('File URL:', fullUrl); // debug
-                        return `<a href="${fullUrl}" target="_blank">${f.split('/').pop()}</a>`;
-                    }).join(', ');
+                    fileLinks = order.file_urls.map(f => `<a href="${BACKEND_URL}${f}" target="_blank">${f.split('/').pop()}</a>`).join(', ');
                 }
 
                 html += `
@@ -162,20 +173,39 @@
                             </select>
                             <span class="badge ${badgeClass}">${order.status}</span>
                         </td>
-                        <td>
-                            <button class="update-btn" data-order-id="${order.id}">Update</button>
+                        <td class="no-print">
+                            <button class="btn-action btn-print" data-order='${JSON.stringify(order)}'>🖨️ Print</button>
+                            <button class="btn-action btn-update" data-order-id="${order.id}">Update</button>
+                            <button class="btn-action btn-delete" data-order-id="${order.id}">🗑️ Delete</button>
                         </td>
                     </tr>
                 `;
             });
             tbody.innerHTML = html;
 
-            document.querySelectorAll('.update-btn').forEach(btn => {
+            // Attach event listeners
+            document.querySelectorAll('.btn-update').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const orderId = btn.dataset.orderId;
                     const select = document.querySelector(`.status-select[data-order-id="${orderId}"]`);
                     const newStatus = select.value;
                     await updateOrderStatus(orderId, newStatus, btn);
+                });
+            });
+
+            document.querySelectorAll('.btn-print').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const order = JSON.parse(btn.dataset.order);
+                    printOrder(order);
+                });
+            });
+
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const orderId = btn.dataset.orderId;
+                    if (confirm(`Are you sure you want to delete order ${orderId.substring(0,8)}?`)) {
+                        await deleteOrder(orderId, btn);
+                    }
                 });
             });
         }
@@ -208,6 +238,80 @@
                 button.textContent = originalText;
                 button.disabled = false;
             }
+        }
+
+        async function deleteOrder(orderId, button) {
+            const originalText = button.textContent;
+            button.textContent = 'Deleting...';
+            button.disabled = true;
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/admin/orders/${orderId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (res.ok) {
+                    showMessage(`✅ Order ${orderId.substring(0,8)} deleted successfully`, 'success');
+                    await fetchOrders();
+                } else {
+                    const err = await res.json();
+                    showMessage(`❌ Error: ${err.detail || 'Failed to delete'}`, 'error');
+                }
+            } catch (err) {
+                showMessage(`❌ Error: ${err.message}`, 'error');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function printOrder(order) {
+            // Create a printable receipt
+            const printWindow = window.open('', '_blank', 'width=600,height=400');
+            const date = new Date(order.created_at).toLocaleString();
+            const status = order.status || 'N/A';
+            const fileNames = order.file_urls ? order.file_urls.map(f => f.split('/').pop()).join(', ') : 'None';
+
+            printWindow.document.write(`
+                <html>
+                <head><title>Order Receipt</title>
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; padding: 2rem; max-width: 600px; margin: auto; }
+                    h1 { color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+                    .row { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #f3f4f6; }
+                    .label { font-weight: 600; color: #374151; }
+                    .value { color: #1f2937; }
+                    .footer { margin-top: 2rem; font-size: 0.8rem; color: #6b7280; text-align: center; }
+                </style>
+                </head>
+                <body>
+                    <h1>🖨️ Order Receipt</h1>
+                    <div class="row"><span class="label">Order ID:</span><span class="value">${order.id}</span></div>
+                    <div class="row"><span class="label">Date:</span><span class="value">${date}</span></div>
+                    <div class="row"><span class="label">User:</span><span class="value">${order.username}</span></div>
+                    <div class="row"><span class="label">Student Name:</span><span class="value">${order.student_name}</span></div>
+                    <div class="row"><span class="label">Year:</span><span class="value">${order.year}</span></div>
+                    <div class="row"><span class="label">Branch:</span><span class="value">${order.branch}</span></div>
+                    <div class="row"><span class="label">Roll Number:</span><span class="value">${order.roll_number}</span></div>
+                    <div class="row"><span class="label">Total Pages:</span><span class="value">${order.total_pages}</span></div>
+                    <div class="row"><span class="label">Copies:</span><span class="value">${order.copies}</span></div>
+                    <div class="row"><span class="label">Print Type:</span><span class="value">${order.print_type}</span></div>
+                    <div class="row"><span class="label">Binding:</span><span class="value">${order.binding}</span></div>
+                    <div class="row"><span class="label">Payment:</span><span class="value">${order.payment_method}</span></div>
+                    <div class="row"><span class="label">Status:</span><span class="value">${status}</span></div>
+                    <div class="row"><span class="label">Files:</span><span class="value">${fileNames}</span></div>
+                    ${order.order_description ? `<div class="row"><span class="label">Instructions:</span><span class="value">${order.order_description}</span></div>` : ''}
+                    <div class="footer">Printed from CampusPrint Admin</div>
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         document.addEventListener('DOMContentLoaded', fetchOrders);

@@ -219,6 +219,21 @@ async def list_orders(current_user: str = Depends(get_current_user), db: AsyncSe
         })
     return {"orders": orders_list}
 
+@app.delete("/api/admin/orders/{order_id}")
+async def delete_order(
+    order_id: str,
+    admin_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete an order (admin only)."""
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    await db.delete(order)
+    await db.commit()
+    return {"message": "Order deleted successfully"}
+    
 @app.get("/")
 def root():
     return {"message": "CampusPrint API is running"}
